@@ -1,14 +1,14 @@
 # Standard things
 
-sp 		:= $(sp).x
+sp		:= $(sp).x
 dirstack_$(sp)	:= $(d)
 d		:= $(dir)
 
 
 # Local variables
 
-HEADERS_$(d)	:= $(shell echo $(d)/*.h)
-SRCS_$(d)	:= $(shell echo $(d)/*.cpp)
+HEADERS_$(d)	:= $(shell find $(d) -type f -iname '*.h')
+SRCS_$(d)	:= $(shell find $(d) -type f -iname '*.cpp')
 OBJS_$(d)	:= $(patsubst $(d)/%.cpp,$(BUILDDIR)/$(d)/%.o, $(filter %.cpp,$(SRCS_$(d))))
 
 CLEAN		:= $(CLEAN) $(OBJS_$(d))
@@ -27,7 +27,7 @@ TGT_$(d) := $(BUILDDIR)/$(d)/test
 CLEAN		:= $(CLEAN) $(TGT_$(d))
 
 $(TGT_$(d)):	LINKFLAGS_TGT = $(LINKFLAGS_$(PACKAGE)) $(LINKFLAGS_systemc) $(LINKFLAGS_tlm-dummy)
-$(TGT_$(d)):	LIBS_TGT = $(LIBPATH_$(PACKAGE)) $(LIB_$(PACKAGE)) $(LIBPATH_systemc)  $(LIB_systemc) $(LIBPATH_tlm-dummy)  $(LIB_tlm-dummy)
+$(TGT_$(d)):	LDLIBS_TGT = $(LIBPATH_$(PACKAGE)) $(LIB_$(PACKAGE)) $(LIBPATH_systemc)  $(LIB_systemc) $(LIBPATH_tlm-dummy)  $(LIB_tlm-dummy)
 $(TGT_$(d)): $(OBJS_$(d))
 	$(LINK)
 

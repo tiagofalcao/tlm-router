@@ -21,9 +21,9 @@ include		$(dir)/rules.mk
 
 # General directory independent rules
 COMP            = $(CXX) $(CXXFLAGS) $(CXXFLAGS_TGT) -I $(shell dirname $<) -o $@ -c $<
-LINK            = $(CXX) $(LDFLAGS_TGT) $(LDFLAGS) -o $@ $^ $(LIBS) $(LIBS_TGT)
-COMPLINK        = $(CXX) $(CXXFLAGS) $(CXXFLAGS_TGT) -I $(shell dirname $<) $(LDFLAGS_TGT) $(LDFLAGS) -o $@ $< $(LIBS) $(LIBS_TGT)
-SHAREDLIB       = $(CXX) --shared $(LDFLAGS_TGT) $(LDFLAGS) -o $@ $^ $(LIBS) $(LIBS_TGT)
+LINK            = $(CXX) $(LDFLAGS_TGT) $(LDFLAGS) -o $@ $^ $(LDLIBS) $(LDLIBS_TGT)
+COMPLINK        = $(CXX) $(CXXFLAGS) $(CXXFLAGS_TGT) -I $(shell dirname $<) $(LDFLAGS_TGT) $(LDFLAGS) -o $@ $< $(LDLIBS) $(LDLIBS_TGT)
+SHAREDLIB       = $(CXX) --shared $(LDFLAGS_TGT) $(LDFLAGS) -o $@ $^ $(LDLIBS) $(LDLIBS_TGT)
 STATICLIB       = $(AR) $(ARFLAGS_TGT) $(ARFLAGS) $@ $^
 
 $(BUILDDIR)/%.o: %.cpp
@@ -60,11 +60,16 @@ clean:
 	rm -f $(CLEAN) $(PKGCONFIG_FILE)
 
 .PHONY: requires $(REQUIREMENTS) $(OPTIONALS)
-requires: $(REQUIREMENTS)
+requires: $(REQUIREMENTS) $(OPTIONALS)
 
 $(REQUIREMENTS) $(OPTIONALS):
 	@echo -n "Checking $@... "
-	@if ! pkg-config $@ ; then echo "no"; exit 1; fi
+ifneq (,$(findstring $@,$(REQUIREMENTS)))
+	@if ! pkg-config --exists $@ ; then echo "no"; exit 1; fi
+else
+	@if ! pkg-config --exists $@ ; then echo -n "no"; fi
+endif
+	$(eval HAVE_$@ := $(shell pkg-config --exists $@ 2>/dev/null; test $$? != 0 ; echo $$?))
 	$(eval VERSION_$@ := $(shell pkg-config --modversion $@ 2>/dev/null))
 	$(eval CFLAGS_$@ := $(shell pkg-config --cflags-only-other $@ 2>/dev/null))
 	$(eval CXXFLAGS_$@ := $(CFLAGS_$@))
@@ -72,21 +77,21 @@ $(REQUIREMENTS) $(OPTIONALS):
 	$(eval LIBPATH_$@ := $(shell pkg-config --libs-only-L $@ 2>/dev/null))
 	$(eval LIB_$@ := $(shell pkg-config --libs-only-l $@ 2>/dev/null))
 	$(eval LINKFLAGS_$@ := $(shell pkg-config --libs-only-other $@ 2>/dev/null))
-	$(eval HAVE_$@ := 1)
-	$(eval DEFINES := $(DEFINES) $(shell echo '\-DHAVE_$@=1' | tr '[:lower:]' '[:upper:]'))
+	$(eval DEFINES := $(DEFINES) -D$(shell echo 'HAVE_$@=$(HAVE_$@)' | tr '[:lower:]' '[:upper:]' | sed 's/-/_/'))
 	@echo $(VERSION_$@)
 
 INSTALL = install
 .PHONY: install
 install: all
-	[ -z "$(TGT_BIN)" ] || $(INSTALL) -m 644 -t $(BINDIR) $(TGT_BIN)
-	[ -z "$(TGT_SBIN)" ] || $(INSTALL) -m 755 -t $(SBINDIR) $(TGT_SBIN)
-	[ -z "$(TGT_LIB)" ] || $(INSTALL) -m 644 -t $(LIBDIR) $(TGT_LIB)
-	[ -z "$(TGT_INCLUDE)" ] || $(INSTALL) -m 644 -t $(INCLUDEDIR) $(TGT_INCLUDE)
-	$(INSTALL) -m 644 -t $(LIBDIR)/pkgconfig $(PKGCONFIG_FILE)
+	[ -z "$(TGT_BIN)" ] || $(INSTALL) -m 644 -D -t $(BINDIR) $(TGT_BIN)
+	[ -z "$(TGT_SBIN)" ] || $(INSTALL) -m 755 -D -t $(SBINDIR) $(TGT_SBIN)
+	[ -z "$(TGT_LIB)" ] || $(INSTALL) -m 644 -D -t $(LIBDIR) $(TGT_LIB)
+	[ -z "$(TGT_INCLUDE)" ] || $(INSTALL) -m 644 -D -t $(INCLUDEDIR) $(TGT_INCLUDE)
+	$(INSTALL) -m 644 -D -t $(LIBDIR)/pkgconfig $(PKGCONFIG_FILE)
 
-.PHONY: test $(TESTS)
+.PHONY: check test $(TESTS)
 test: all $(TESTS)
+check: test
 
 # Prevent make from removing any build targets, including intermediate ones
 
